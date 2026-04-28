@@ -281,7 +281,6 @@ RBMStatusIcon = hiCreateLabel(
     ?name 'RBMStatusIcon
     ?labelText "(unknown)"
     ?justification CDS_JUSTIFY_LEFT)
-errset(RBMStatusIcon->foreground = "ForestGreen")
 
 RBMHostLabel = hiCreateLabel(
     ?name 'RBMHostLabel
@@ -336,11 +335,11 @@ RBMBolLocal = hiCreateBooleanButton(
     ?callback nil)
 
 ; ----------------------------------------------------------------------
-; Debug section
+; Options section -- three boolean toggles, one per row.
 ; ----------------------------------------------------------------------
-RBMSecDebug = hiCreateLabel(
-    ?name 'RBMSecDebug
-    ?labelText "DEBUG"
+RBMSecOptions = hiCreateLabel(
+    ?name 'RBMSecOptions
+    ?labelText "OPTIONS"
     ?justification CDS_JUSTIFY_LEFT)
 
 RBMBolEcho = hiCreateBooleanButton(
@@ -393,33 +392,24 @@ hiCreateAppForm(
         list(RBMBtnStart    150:180 110:28)
         list(RBMBtnStop     270:180 110:28)
         list(RBMIntPort      30:220 200:28 50)
-        list(RBMBolLocal    260:220 380:28)
 
-        ; --- DEBUG ---
-        list(RBMSecDebug     20:265 680:20)
-        list(RBMBolEcho      30:290 320:28)
-        list(RBMBolLog      370:290 320:28)
+        ; --- OPTIONS (three checkboxes, one per row, left-aligned) ---
+        list(RBMSecOptions   20:265 680:20)
+        list(RBMBolLocal     30:290 660:28)
+        list(RBMBolEcho      30:320 660:28)
+        list(RBMBolLog       30:350 660:28)
 
         ; --- ACTION ---
-        list(RBMBtnStopAll   30:340 660:32)
+        list(RBMBtnStopAll   30:395 660:32)
     )
     ?buttonLayout 'Empty
     ?help ""
-    ?initialSize  720:400
-    ?minSize      720:400
-    ?maxSize      720:400
+    ?initialSize  720:455
+    ?minSize      720:455
+    ?maxSize      720:455
     ?mapCB        "RBMRefresh()"
     ?callback     "RBMApply()"
 )
-
-; Best-effort visual hierarchy.  Cadence Motif labels accept ?foreground
-; via the ShapeSheet-ish slot access, but support is patchy across IC
-; builds; wrap each set in errset so a failure on one variant doesn't
-; abort form construction.  The layout above is fully readable even if
-; every colour set fails.
-errset(RBMSecStatus->foreground  = "DimGray")
-errset(RBMSecControl->foreground = "DimGray")
-errset(RBMSecDebug->foreground   = "DimGray")
 
 ; ============================================================================
 ; Menu Integration
@@ -464,7 +454,7 @@ procedure(RBMRefresh()
     ;   doesn't require a separate `ss -tlnp` round-trip.
     ; - Other widgets just mirror the current SKILL globals.
     when(boundp('RBMonInstalled)
-        let((alive bind hostStr statusText statusColor newForm)
+        let((alive bind hostStr statusText newForm)
             alive = (boundp('RBIpc) && ipcIsAliveProcess(RBIpc))
             ; Bind: prefer captured (RBLastBind), fall back to derived
             bind = if(RBLastBind && strlen(RBLastBind) > 0
@@ -479,19 +469,13 @@ procedure(RBMRefresh()
                 ((strlen(RBLastIP) > 0)   RBLastIP)
                 ((strlen(RBLastHost) > 0) RBLastHost)
                 (t ""))
-            ; Status icon + traffic-light colour
-            cond(
-                (alive && RBLastPid
-                    statusText = "● Running"
-                    statusColor = "ForestGreen")
-                (alive
-                    ; ipc alive but no banner has come in -- daemon may
-                    ; be a zombie or banner is still in flight
-                    statusText = "◐ Starting / Suspect"
-                    statusColor = "DarkOrange")
-                (t
-                    statusText = "○ Down"
-                    statusColor = "Firebrick"))
+            ; Status indicator -- text only.  ?foreground colour writes
+            ; on Motif labels are silently ignored on this IC build,
+            ; so we use unicode glyphs for the visual cue instead.
+            statusText = cond(
+                (alive && RBLastPid              "[OK]      Running")
+                (alive                           "[...]     Starting / Suspect")
+                (t                               "[--]      Down"))
 
             ; --- New-style form (post-restart): RBMStatusIcon exists. ---
             ; --- Old-style form (legacy): only RBMState exists.       ---
@@ -499,7 +483,6 @@ procedure(RBMRefresh()
             if(newForm
                 progn(
                     errset(RBMonitor->RBMStatusIcon->value = statusText)
-                    errset(RBMonitor->RBMStatusIcon->foreground = statusColor)
                     errset(RBMonitor->RBMHostLabel->value =
                         if(strlen(hostStr) > 0
                             sprintf(nil "Host:  %s" hostStr)
@@ -511,13 +494,13 @@ procedure(RBMRefresh()
                             if(RBLastPid
                                 sprintf(nil "(last)  pid=%L  port=%d"
                                     RBLastPid RBPort)
-                                "")))
+                                " ")))
                     errset(RBMonitor->RBMStatsLabel->value =
                         if(alive
                             sprintf(nil "%d calls   %d errors   up %s"
                                 RBStatCount RBStatErrors
                                 RBFormatUptime(RBStatUptime))
-                            ""))
+                            " "))
                 )
                 ; Old form path -- pack everything into a single line
                 errset(RBMonitor->RBMState->value =
