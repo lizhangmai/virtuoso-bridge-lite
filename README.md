@@ -55,7 +55,7 @@ A new infrastructure for **Agentic Analog and Mixed-Signal Design**. LLM Agents 
 **In short:** Both projects are built on the same Cadence SKILL IPC facility, using the same core mechanism: `ipcBeginProcess` + `evalstring` + `ipcWriteProcess`. Here are the core lines from each:
 
 <details>
-<summary><b>virtuoso-bridge-lite</b> — <code>core/ramic_bridge.il</code></summary>
+<summary><b>virtuoso-bridge-lite</b> — <code>src/virtuoso_bridge/virtuoso/basic/resources/ramic_bridge.il</code></summary>
 
 ```skill
 RBIpc = ipcBeginProcess(
