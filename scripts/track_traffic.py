@@ -182,6 +182,32 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    # Shields.io endpoint badges -- consumed by README.md via
+    # https://img.shields.io/endpoint?url=<raw URL>.  Schema:
+    # https://shields.io/endpoint
+    def _badge(label: str, total: int, uniques: int, color: str) -> dict:
+        return {
+            "schemaVersion": 1,
+            "label": label,
+            "message": f"{total} ({uniques} unique)",
+            "color": color,
+            "cacheSeconds": 3600,
+        }
+
+    clones_total = sum(v["count"] for v in clones.values())
+    clones_uniq  = sum(v["uniques"] for v in clones.values())
+    views_total  = sum(v["count"] for v in views.values())
+    views_uniq   = sum(v["uniques"] for v in views.values())
+
+    (STATS_DIR / "clones-badge.json").write_text(
+        json.dumps(_badge("clones", clones_total, clones_uniq, "blue")) + "\n",
+        encoding="utf-8",
+    )
+    (STATS_DIR / "views-badge.json").write_text(
+        json.dumps(_badge("views",  views_total,  views_uniq,  "green")) + "\n",
+        encoding="utf-8",
+    )
+
     print(f"clones tracked: {len(clones)} day(s)")
     print(f"views  tracked: {len(views)} day(s)")
     return 0
