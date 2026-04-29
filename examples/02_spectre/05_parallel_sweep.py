@@ -36,7 +36,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 
-from virtuoso_bridge.models import ExecutionStatus, SimulationResult
+from virtuoso_bridge.models import SimulationResult
 from virtuoso_bridge.spectre.runner import SpectreSimulator, spectre_mode_args
 
 ROOT = Path(__file__).resolve().parent
@@ -159,40 +159,29 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[Sweep] Cload values: {[f'{c * 1e15:.1f}fF' for c in CLOAD_VALUES]}")
     print(f"[Parallel] {len(tasks)} simulations, {max_workers} workers, mode '{mode}'")
 
-    # --- Run each sweep point with its own work_dir to avoid file collisions --
-    spectre_cmd = os.getenv("SPECTRE_CMD", "spectre")
-    spectre_args = spectre_mode_args(mode)
+    # --- Run all sweep points in parallel via SpectreSimulator's pool ----
+    # One SpectreSimulator instance manages the worker pool; each task gets
+    # its own remote uuid-based directory automatically, and locally each
+    # task writes ``<netlist.stem>.raw`` next to its netlist, so the
+    # distinct sweep filenames (inv_cload_5.0f.scs / inv_cload_10.0f.scs /
+    # ...) keep results from colliding without per-task work_dir setup.
+    sim = SpectreSimulator.from_env(
+        spectre_cmd=os.getenv("SPECTRE_CMD", "spectre"),
+        spectre_args=spectre_mode_args(mode),
+        work_dir=OUT_DIR,
+        output_format="psfascii",
+    )
+    sim.set_max_workers(max_workers)
 
-    def _run_one(item: tuple[int, tuple[Path, dict]]) -> int:
-        """Run a single sweep point; returns index. Result stored in _results."""
-        idx, (netlist, params) = item
-        work_dir = OUT_DIR / f"cload_{CLOAD_VALUES[idx] * 1e15:.1f}f"
-        work_dir.mkdir(parents=True, exist_ok=True)
-        sim = SpectreSimulator.from_env(
-            spectre_cmd=spectre_cmd,
-            spectre_args=spectre_args,
-            work_dir=work_dir,
-            output_format="psfascii",
-        )
-        result = sim.run_simulation(netlist, params)
-        _results[idx] = result
+    # ``run_parallel`` is the one-shot convenience wrapper -- submit a list
+    # of (netlist, params) tasks, get a list of SimulationResult back in
+    # the same order.  Equivalent low-level form:
+    #     futures = [sim.submit(n, p) for n, p in tasks]
+    #     results = SpectreSimulator.wait_all(futures)
+    try:
+        results: list[SimulationResult] = sim.run_parallel(tasks)
+    finally:
         sim.shutdown()
-        return idx
-
-    _results: list[SimulationResult | None] = [None] * len(tasks)
-
-    from concurrent.futures import ThreadPoolExecutor
-
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [pool.submit(_run_one, (i, task)) for i, task in enumerate(tasks)]
-        for f in futures:
-            f.result()
-
-    results: list[SimulationResult] = [
-        r if r is not None
-        else SimulationResult(status=ExecutionStatus.ERROR, errors=["No result"])
-        for r in _results
-    ]
 
     # --- Analyze results -------------------------------------------------
     cloads_fF: list[float] = []
