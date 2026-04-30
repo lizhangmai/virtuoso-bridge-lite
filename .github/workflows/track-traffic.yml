@@ -5,19 +5,6 @@ name: track-traffic
 # record without any external storage.
 
 on:
-  # NOTE: scheduled runs are disabled because GitHub Actions' default
-  # GITHUB_TOKEN cannot access the /traffic/clones and /traffic/views
-  # endpoints (returns 403 "Resource not accessible by integration"
-  # regardless of `permissions:`).  Manual cadence is documented in
-  # AGENTS.md ("Traffic stats: manual cadence").
-  #
-  # To re-enable: create a PAT with `public_repo` (classic) or
-  # `Administration: read` (fine-grained), save it as repo secret
-  # TRAFFIC_PAT, change GH_TOKEN below to ${{ secrets.TRAFFIC_PAT }},
-  # and uncomment the schedule block.
-  #
-  # schedule:
-  #   - cron: '17 4 * * *'   # 04:17 UTC daily, off the hour
   workflow_dispatch:  # manual runs only — Actions tab → Run workflow
 
 permissions:
