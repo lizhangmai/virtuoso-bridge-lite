@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Open a maestro in GUI, snapshot it, then close it.
 
-Complements ``09_snapshot_with_metrics.py`` (which snapshots whichever
+Complements ``02_snapshot_with_metrics.py`` (which snapshots whichever
 maestro window the user currently has focused).  This script owns the
 whole lifecycle:
 
@@ -11,7 +11,7 @@ whole lifecycle:
 
 Usage::
 
-    python 08_gui_open_snapshot_close.py <LIB> <CELL>
+    python 04_gui_open_snapshot_close.py <LIB> <CELL>
 
 Running from VSCode without args will NOT work — VSCode doesn't pass
 positional arguments by default.

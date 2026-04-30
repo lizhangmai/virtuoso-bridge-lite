@@ -3,14 +3,13 @@
 
 Usage::
 
-    python 03_bg_open_read_close_maestro.py <LIB>
+    python 03_bg_open_read_close_maestro.py <LIB> <CELL>
 
-    <LIB> is required — the Virtuoso library where the Maestro setup lives.
-    Example::
+    Both arguments are required.  Example::
 
-        python 03_bg_open_read_close_maestro.py testlib
+        python 03_bg_open_read_close_maestro.py PLAYGROUND_AMP TB_AMP_5T_D2S_DC_AC
 
-    Running this script from VSCode without passing <LIB> will NOT work.
+    Running this script from VSCode without passing the args will NOT work.
 """
 
 from __future__ import annotations
@@ -25,13 +24,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 from virtuoso_bridge import VirtuosoClient
 from virtuoso_bridge.virtuoso.maestro import close_session, open_session
 
-# ----------------------------------------------------------------------
-# Customize to match your Maestro cell
-# ----------------------------------------------------------------------
-# Must exist as a Maestro view in <LIB>
-CELL = "TB_AMP_5T_D2S_DC_AC"
-# ----------------------------------------------------------------------
-
 
 def _first_element(raw: str | None) -> str:
     """Extract the first quoted string from a SKILL list like (\"name\")."""
@@ -40,13 +32,13 @@ def _first_element(raw: str | None) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print("=" * 60, file=sys.stderr)
-        print(" ERROR: missing required argument <LIB>", file=sys.stderr)
+        print(" ERROR: missing required arguments <LIB> <CELL>", file=sys.stderr)
         print()
         print(
-            f" Usage: python {Path(__file__).name} <LIB>\n"
-            " Example: python 03_bg_open_read_close_maestro.py lifangshi\n",
+            f" Usage: python {Path(__file__).name} <LIB> <CELL>\n"
+            " Example: python 03_bg_open_read_close_maestro.py PLAYGROUND_AMP TB_AMP_5T_D2S_DC_AC\n",
             file=sys.stderr,
         )
         print(
@@ -57,19 +49,19 @@ def main() -> int:
         print("=" * 60, file=sys.stderr)
         return 1
 
-    lib = sys.argv[1]
+    lib, cell = sys.argv[1], sys.argv[2]
     client = VirtuosoClient.from_env()
 
     # Open background session — raises RuntimeError if the cell or view is missing
     try:
-        session = open_session(client, lib, CELL)
+        session = open_session(client, lib, cell)
     except RuntimeError as exc:
         print(f"[ERROR] Failed to open maestro: {exc}", file=sys.stderr)
         print(
             "  Verify that:\n"
             f"    1. Library '{lib}' exists in Virtuoso\n"
-            f"    2. Cell '{CELL}' exists in '{lib}'\n"
-            f"    3. Cell '{CELL}' has a 'maestro' view\n",
+            f"    2. Cell '{cell}' exists in '{lib}'\n"
+            f"    3. Cell '{cell}' has a 'maestro' view\n",
             file=sys.stderr,
         )
         return 1
@@ -85,7 +77,7 @@ def main() -> int:
         )
         cfg["test"] = test or "(none)"
         cfg["lib"] = lib
-        cfg["cell"] = CELL
+        cfg["cell"] = cell
         print(json.dumps(cfg, indent=2, default=str))
     except Exception as exc:
         error = exc

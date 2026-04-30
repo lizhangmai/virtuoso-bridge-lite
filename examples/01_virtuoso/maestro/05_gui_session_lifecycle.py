@@ -8,13 +8,21 @@ Covers:
   5. Close Editing session with unsaved changes (save first)
   6. Close Reading session with unsaved changes (discard)
 
-Usage:
-    python examples/01_virtuoso/maestro/07_gui_session_lifecycle.py
+The test reopens / saves / closes the same maestro repeatedly, so it must
+target a real maestro view that already exists on the remote.  We deliberately
+require both <LIB> and <CELL> on the command line — the test mutates session
+state, so accidentally pointing it at a wrong cell would be costly.
+
+Usage::
+
+    python examples/01_virtuoso/maestro/05_gui_session_lifecycle.py <LIB> <CELL>
+    python examples/01_virtuoso/maestro/05_gui_session_lifecycle.py PLAYGROUND_LLM TB_SAMPLING_BTS_TOP_DIFF
 """
 
 import sys
 import time
 import logging
+from pathlib import Path
 
 from virtuoso_bridge import VirtuosoClient, decode_skill_output
 from virtuoso_bridge.virtuoso.maestro.lifecycle import (
@@ -28,9 +36,21 @@ from virtuoso_bridge.virtuoso.maestro.lifecycle import (
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
+if len(sys.argv) < 3:
+    print(
+        "=" * 60 + "\n"
+        " ERROR: missing required arguments <LIB> <CELL>\n\n"
+        f" Usage: python {Path(__file__).name} <LIB> <CELL>\n"
+        f" Example: python {Path(__file__).name} PLAYGROUND_LLM TB_SAMPLING_BTS_TOP_DIFF\n\n"
+        " The cell must already exist with a maestro view.\n"
+        + "=" * 60,
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+LIB, CELL = sys.argv[1], sys.argv[2]
+
 client = VirtuosoClient.from_env()
-LIB = "PLAYGROUND_LLM"
-CELL = "TB_SAMPLING_BTS_TOP_DIFF"
 
 passed = 0
 failed = 0

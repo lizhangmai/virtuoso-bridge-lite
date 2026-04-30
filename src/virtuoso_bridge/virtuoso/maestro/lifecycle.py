@@ -182,10 +182,19 @@ def open_session(client: VirtuosoClient, lib: str, cell: str) -> str:
 
 
 def close_session(client: VirtuosoClient, session: str) -> None:
-    """Close a background maestro session via maeCloseSession."""
+    """Close a background maestro session via maeCloseSession.
+
+    Wraps the close + log in ``progn`` so SKILL evaluates both as a
+    sequence rather than mis-parsing the trailing ``printf`` token as a
+    function applied to the close result (which silently swallows the
+    error and leaves the session alive).
+    """
     client.execute_skill(
+        'progn('
         f'maeCloseSession(?session "{session}" ?forceClose t) '
-        f'printf("[%s maeCloseSession] session=%s closed\\n" nth(2 parseString(getCurrentTime())) "{session}")')
+        f'printf("[%s maeCloseSession] session=%s closed\\n" '
+        f'nth(2 parseString(getCurrentTime())) "{session}"))'
+    )
 
 
 def find_open_session(client: VirtuosoClient) -> str | None:

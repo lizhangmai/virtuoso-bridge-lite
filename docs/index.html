@@ -384,12 +384,13 @@ bridge = VirtuosoClient.<span class="fn">local</span>(port=65432)</code></pre>
       <tr><td><code>02_read_connectivity.py</code></td><td>Read nets, pins, instances</td></tr>
       <tr><td><code>03_read_instance_params.py</code></td><td>Read instance parameters</td></tr>
       <tr><td><code>08_import_cdl_cap_array.py</code></td><td>Import CDL netlist via spiceIn</td></tr>
-      <tr><td rowspan="6">Maestro</td><td><code>01_read_focused_maestro.py</code></td><td>snapshot() of focused maestro</td></tr>
-      <tr><td><code>03_bg_open_read_close_maestro.py</code></td><td>Background open/close + snapshot</td></tr>
-      <tr><td><code>06a_rc_create.py</code></td><td>Create Maestro test for RC filter</td></tr>
-      <tr><td><code>06b_rc_simulate_and_read.py</code></td><td>Run simulation, read scalar results, export waveforms</td></tr>
-      <tr><td><code>07_gui_session_lifecycle.py</code></td><td>open_gui_session / close_gui_session lifecycle</td></tr>
-      <tr><td><code>09_snapshot_with_metrics.py</code></td><td>Full disk dump (snapshot -o ROOT) with timing metrics</td></tr>
+      <tr><td rowspan="7">Maestro</td><td><code>01_read_focused_maestro.py</code></td><td>snapshot() of focused maestro (in-memory, JSON to stdout)</td></tr>
+      <tr><td><code>02_snapshot_with_metrics.py</code></td><td>Full disk dump (snapshot -o ROOT) of focused maestro</td></tr>
+      <tr><td><code>03_bg_open_read_close_maestro.py</code></td><td>Background open/close + read (no GUI window)</td></tr>
+      <tr><td><code>04_gui_open_snapshot_close.py</code></td><td>GUI open → snapshot → close (owns lifecycle)</td></tr>
+      <tr><td><code>05_gui_session_lifecycle.py</code></td><td>open_gui_session / close_gui_session lifecycle test</td></tr>
+      <tr><td><code>06a_rc_create.py</code></td><td>Create Maestro test for RC filter (auto-timestamped cell)</td></tr>
+      <tr><td><code>06b_rc_simulate_and_read.py</code></td><td>Run simulation in background, read results, export waveforms</td></tr>
       <tr><td rowspan="4">Spectre</td><td><code>01_inverter_tran.py</code></td><td>CMOS inverter transient simulation</td></tr>
       <tr><td><code>01_veriloga_adc_dac.py</code></td><td>4-bit ADC/DAC with Verilog-A</td></tr>
       <tr><td><code>02_cap_dc_ac.py</code></td><td>RC filter DC+AC frequency response</td></tr>

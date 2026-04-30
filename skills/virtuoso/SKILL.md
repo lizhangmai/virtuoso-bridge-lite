@@ -242,13 +242,12 @@ Load on demand — each contains detailed API docs and edge-case guidance:
 
 ### `examples/01_virtuoso/maestro/`
 - `01_read_focused_maestro.py` — in-memory snapshot of the focused maestro (config + env + results + outputs + corners + variables)
-- `03_bg_open_read_close_maestro.py` — background open → read config → close
-- `06a_rc_create.py` — create RC schematic + Maestro setup
-- `06b_rc_simulate.py` — run simulation
-- `06c_rc_read_results.py` — read results, export waveforms, open GUI
-- `07_gui_session_lifecycle.py` — GUI session lifecycle integration test (open/close edge cases)
-- `08_gui_open_snapshot_close.py` — GUI open → snapshot artifacts → close (owns lifecycle)
-- `09_snapshot_with_metrics.py` — snapshot the focused maestro to a timestamped directory (disk artifacts)
+- `02_snapshot_with_metrics.py` — snapshot the focused maestro to a timestamped directory (disk artifacts)
+- `03_bg_open_read_close_maestro.py` — background open → read config → close (no GUI window)
+- `04_gui_open_snapshot_close.py` — GUI open → snapshot artifacts → close (owns lifecycle)
+- `05_gui_session_lifecycle.py` — GUI session lifecycle integration test (open/close edge cases)
+- `06a_rc_create.py` — create RC schematic + Maestro setup (cell name auto-timestamped)
+- `06b_rc_simulate_and_read.py` — run simulation in background, read results, export waveforms
 
 ### `examples/01_virtuoso/digital_import/`
 Hand off Genus/Innovus P&R products into a Virtuoso library.  All three scripts wrap standalone Cadence batch tools (`strmin` / `ihdl`) via SKILL `system()` — no GUI forms, no manual bootstrap.  See that folder's `README.md` for prerequisites, PDK-portability notes, and full CLI reference.

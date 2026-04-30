@@ -586,12 +586,12 @@ client.download_file('/tmp/results.csv', 'output/results.csv')
 ## Examples
 
 - `examples/01_virtuoso/maestro/01_read_focused_maestro.py` — in-memory snapshot of the focused maestro
+- `examples/01_virtuoso/maestro/02_snapshot_with_metrics.py` — snapshot the focused maestro to a timestamped directory
 - `examples/01_virtuoso/maestro/03_bg_open_read_close_maestro.py` — background open → read config → close
-- `examples/01_virtuoso/maestro/06a_rc_create.py` — create RC schematic + Maestro setup
-- `examples/01_virtuoso/maestro/06b_rc_simulate.py` — run simulation
-- `examples/01_virtuoso/maestro/06c_rc_read_results.py` — read results, export waveforms, open GUI
-- `examples/01_virtuoso/maestro/08_gui_open_snapshot_close.py` — GUI open → snapshot → close (full lifecycle)
-- `examples/01_virtuoso/maestro/09_snapshot_with_metrics.py` — snapshot the focused maestro to a timestamped directory
+- `examples/01_virtuoso/maestro/04_gui_open_snapshot_close.py` — GUI open → snapshot → close (full lifecycle)
+- `examples/01_virtuoso/maestro/05_gui_session_lifecycle.py` — GUI session lifecycle integration test
+- `examples/01_virtuoso/maestro/06a_rc_create.py` — create RC schematic + Maestro setup (auto-timestamped cell)
+- `examples/01_virtuoso/maestro/06b_rc_simulate_and_read.py` — run simulation in background, read results, export waveforms
 
 ## axl* API -- variable management
 

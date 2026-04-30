@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 """Step 1: Create RC filter schematic + Maestro setup.
 
-Creates:
+Creates a fresh, timestamped cell ``TB_RC_FILTER_<YYYYMMDD_HHMMSS>``:
+
 - Schematic: vdc (AC=1) → R (1k) → C (c_val) → GND, with pin OUT
 - Maestro: AC analysis 1Hz–10GHz, sweep c_val = 1p,100f, BW spec > 1GHz
 
-Run this once, then use 06b to simulate and 06c to read results.
+We always create a new cell so reruns never overwrite a prior run's results.
+The final cell name is printed at the end — pass it to ``06b_rc_simulate_and_read.py``.
 
 Usage::
 
     python 06a_rc_create.py <LIB>
 
-    <LIB> is required — the Virtuoso library where the schematic and Maestro
-    setup will be created.  Example::
+Example::
 
-        python 06a_rc_create.py testlib
+    python 06a_rc_create.py PLAYGROUND_LLM
+    # → "[create] PLAYGROUND_LLM/TB_RC_FILTER_20260430_120000"
+    # then:
+    python 06b_rc_simulate_and_read.py PLAYGROUND_LLM TB_RC_FILTER_20260430_120000
 
-    Running this script from VSCode without passing <LIB> will NOT work.
+Running this script from VSCode without passing <LIB> will NOT work.
 """
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -30,8 +35,6 @@ from virtuoso_bridge.virtuoso.maestro import (
     open_session, close_session, create_test, set_analysis,
     add_output, set_spec, set_var, save_setup,
 )
-
-CELL = "TB_RC_FILTER"
 
 
 def main() -> int:
@@ -56,9 +59,10 @@ def main() -> int:
         return 1
 
     lib = sys.argv[1]
+    cell = f"TB_RC_FILTER_{datetime.now():%Y%m%d_%H%M%S}"
 
     client = VirtuosoClient.from_env()
-    print(f"[info] {lib}/{CELL}")
+    print(f"[info] {lib}/{cell}")
 
     # --- Create schematic ---
     print("[schematic] Creating RC filter...")
@@ -67,7 +71,7 @@ def main() -> int:
         schematic_create_wire_between_instance_terms as wire,
         schematic_create_pin_at_instance_term as pin_at,
     )
-    with client.schematic.edit(lib, CELL) as sch:
+    with client.schematic.edit(lib, cell) as sch:
         sch.add(inst("analogLib", "vdc", "symbol", "V0", 0, 0, "R0"))
         sch.add(inst("analogLib", "gnd", "symbol", "GND0", 0, -0.625, "R0"))
         sch.add(inst("analogLib", "res", "symbol", "R0", 1.5, 0.5, "R90"))
@@ -81,7 +85,7 @@ def main() -> int:
 
     # Set CDF parameters
     cv = "_rcfCv"
-    client.execute_skill(f'{cv} = dbOpenCellViewByType("{lib}" "{CELL}" "schematic" nil "a")')
+    client.execute_skill(f'{cv} = dbOpenCellViewByType("{lib}" "{cell}" "schematic" nil "a")')
     for inst_, param, val in [("V0", "vdc", "0"), ("V0", "acm", "1"),
                               ("R0", "r", "1k"), ("C0", "c", "c_val")]:
         client.execute_skill(
@@ -91,15 +95,15 @@ def main() -> int:
     client.execute_skill(f"schCheck({cv})")
     client.execute_skill(f"dbSave({cv})")
     r = client.execute_skill(f"{cv}~>instances~>name")
-    print(f"[schematic] {lib}/{CELL}/schematic")
+    print(f"[schematic] {lib}/{cell}/schematic")
     print(f"  Instances: {r.output}")
     print(f"  V0: vdc=0, acm=1 | R0: r=1k | C0: c=c_val | Pin: OUT")
 
     # --- Create Maestro ---
     print("[maestro] Creating setup...")
-    session = open_session(client, lib, CELL)
+    session = open_session(client, lib, cell)
 
-    create_test(client, "AC", lib=lib, cell=CELL, session=session)
+    create_test(client, "AC", lib=lib, cell=cell, session=session)
     set_analysis(client, "AC", "tran", enable=False, session=session)
     set_analysis(client, "AC", "ac",
                  options='(("start" "1") ("stop" "10G") '
@@ -108,17 +112,19 @@ def main() -> int:
                  session=session)
     add_output(client, "Vout", "AC", output_type="net", signal_name="/OUT", session=session)
     add_output(client, "BW", "AC", output_type="point",
-               expr='bandwidth(mag(VF("\\"/OUT\\")) 3 \\"low\\")', session=session)
+               expr=r'bandwidth(mag(VF(\"/OUT\")) 3 \"low\")', session=session)
     set_spec(client, "BW", "AC", gt="1G", session=session)
     set_var(client, "c_val", "1p,100f", session=session)
 
-    save_setup(client, lib, CELL, session=session)
+    save_setup(client, lib, cell, session=session)
     close_session(client, session)
-    print(f"[maestro] {lib}/{CELL}/maestro")
+    print(f"[maestro] {lib}/{cell}/maestro")
     print(f"  Test: AC | Analysis: ac 1Hz-10GHz, 20pts/dec")
     print(f"  Outputs: Vout (net /OUT), BW (bandwidth expr)")
     print(f"  Spec: BW > 1GHz")
     print(f"  Sweep: c_val = 1p, 100f")
+    print()
+    print(f"[next] python 06b_rc_simulate_and_read.py {lib} {cell}")
     return 0
 
 
