@@ -41,78 +41,48 @@ A new infrastructure for **Agentic Analog and Mixed-Signal Design**. LLM Agents 
 
 > **If you are an AI agent**, read [`AGENTS.md`](AGENTS.md) first and follow its setup checklist.
 
-## Comparison with skillbridge
+## Choose your setup
 
-| Feature | virtuoso-bridge-lite | [skillbridge](https://github.com/unihd-cag/skillbridge) |
+| You want to... | Use this path | Needs |
 |---|---|---|
-| **Core mechanism** | `ipcBeginProcess` + `evalstring` | `ipcBeginProcess` + `evalstring` |
-| **Local mode** | Yes | Yes |
-| **Remote execution** | SSH tunnel, jump host, auto-reconnect | Not supported |
-| **Calling style** | String-based: `execute_skill("dbOpenCellViewByType(...)")` | Pythonic mapping: `ws.db.open_cell_view_by_type(...)` |
-| **Load .il files** | `client.load_il()` | Not supported |
-| **Layout / schematic API** | `client.layout.edit()` context manager | Raw SKILL only |
-| **Spectre simulation** | Built-in runner + PSF parser | Not supported |
-| **AI agent support** | Skill files, CLI-first, command logging | Not designed for agents |
-| **Python ↔ SKILL types** | String-based | Auto bidirectional mapping |
-| **IDE tab completion** | No (not needed by agents) | Yes (Jupyter, PyCharm stubs) |
+| Drive Virtuoso on a remote EDA server | Remote mode | SSH access, running Virtuoso, `load(...)` in CIW |
+| Drive Virtuoso on the same machine | Local mode | Running Virtuoso, `VB_REMOTE_HOST=localhost` |
+| Run Spectre from netlists | Spectre simulator | `spectre` on PATH, or `VB_CADENCE_CSHRC` |
+| Let a coding agent operate Cadence | Agent skills | Link `skills/` into your agent's skill directory |
 
-**In short:** Both projects are built on the same Cadence SKILL IPC facility, using the same core mechanism: `ipcBeginProcess` + `evalstring` + `ipcWriteProcess`. Here are the core lines from each:
-
-<details>
-<summary><b>virtuoso-bridge-lite</b> — <code>src/virtuoso_bridge/virtuoso/basic/resources/ramic_bridge.il</code></summary>
-
-```skill
-RBIpc = ipcBeginProcess(
-  sprintf(nil "%s %L %L %L" RBPython RBDPath host RBPort)
-  "" 'RBIpcDataHandler 'RBIpcErrHandler 'RBIpcFinishHandler "")
-
-procedure(RBIpcDataHandler(ipcId data)
-  if(errset(result = evalstring(data)) then
-    ipcWriteProcess(ipcId sprintf(nil "%c%L%c" 2 result 30))
-  else
-    ipcWriteProcess(ipcId sprintf(nil "%c%L%c" 21 errset.errset 30))
-  )
-)
-```
-</details>
-
-<details>
-<summary><b>skillbridge</b> — <code>skillbridge/server/python_server.il</code></summary>
-
-```skill
-pyStartServer.ipc = ipcBeginProcess(
-  executableWithArgs "" '__pyOnData '__pyOnError '__pyOnFinish pyStartServer.logName)
-
-defun(__pyOnData (id data)
-  foreach(line parseString(data "\n")
-    capturedWarning = __pyCaptureWarnings(errset(result=evalstring(line)))
-    ipcWriteProcess(id lsprintf("success %L\n" result))
-  )
-)
-```
-</details>
-
-The divergence is in what's built on top: skillbridge stays thin — a Pythonic RPC client for interactive local use. virtuoso-bridge-lite adds SSH remote access, high-level layout/schematic APIs, Spectre simulation, and an AI-agent-ready harness.
+Virtuoso SKILL execution and Spectre simulation are independent. You can run
+Spectre without the SKILL bridge, and you can use the SKILL bridge without
+Spectre.
 
 ## Quick Start
 
 ```bash
-pip install -e .              # install
-virtuoso-bridge init user@host [-J user@jump-host]   # write ~/.virtuoso-bridge/.env in one shot
-                                                     # (no args: empty template — edit it yourself)
-virtuoso-bridge start         # start SSH tunnel
-virtuoso-bridge status        # verify connection
-virtuoso-bridge windows       # list all open Virtuoso windows
-virtuoso-bridge screenshot    # screenshot CIW (or: current, N)
-virtuoso-bridge export-visio MyLib MyCell -o MyCell.vsdx  # Windows + Visio
-                                                          # (NMOS/PMOS bulk pin `B` is dropped by default;
-                                                          #  add --include-body-pins to draw bulk nets too)
+# 1. Install in a virtual environment
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+
+# 2. Create ~/.virtuoso-bridge/.env
+virtuoso-bridge init user@host [-J user@jump-host]
+# Or: virtuoso-bridge init      # empty template; edit VB_REMOTE_HOST yourself
+
+# 3. Start and verify
+virtuoso-bridge start          # starts tunnel and prints the CIW load(...) line
+virtuoso-bridge status         # tunnel + Virtuoso daemon + Spectre availability
 ```
 
 ```python
 from virtuoso_bridge import VirtuosoClient
 client = VirtuosoClient.from_env()
 client.execute_skill("1+2")  # VirtuosoResult(status=SUCCESS, output='3')
+```
+
+Useful first commands after the bridge is up:
+
+```bash
+virtuoso-bridge windows       # list all open Virtuoso windows
+virtuoso-bridge screenshot    # screenshot CIW (or: current, N)
+virtuoso-bridge export-visio MyLib MyCell -o MyCell.vsdx  # Windows + Visio
 ```
 
 …or skip Python entirely — run SKILL straight from the shell:
@@ -223,9 +193,62 @@ same pattern — point their skills path at `skills/` in this repo.
 
 Fully decoupled: VirtuosoClient works with any TCP endpoint — SSH tunnel, VPN, direct LAN, or local. Multiple connection profiles are supported, each managing an independent tunnel to a separate design server.
 
-> Want to understand the raw mechanism? See [`core/`](core/) — the entire bridge distilled into 3 files (180 lines).
+> Want to understand the raw mechanism? Start with [`src/virtuoso_bridge/virtuoso/basic/resources/ramic_bridge.il`](src/virtuoso_bridge/virtuoso/basic/resources/ramic_bridge.il) and [`src/virtuoso_bridge/virtuoso/basic/bridge.py`](src/virtuoso_bridge/virtuoso/basic/bridge.py).
 
 > Want to use Virtuoso locally without SSH? See [Local mode](AGENTS.md#local-mode) in AGENTS.md.
+
+## Comparison with skillbridge
+
+| Feature | virtuoso-bridge-lite | [skillbridge](https://github.com/unihd-cag/skillbridge) |
+|---|---|---|
+| **Core mechanism** | `ipcBeginProcess` + `evalstring` | `ipcBeginProcess` + `evalstring` |
+| **Local mode** | Yes | Yes |
+| **Remote execution** | SSH tunnel, jump host, auto-reconnect | Not supported |
+| **Calling style** | String-based: `execute_skill("dbOpenCellViewByType(...)")` | Pythonic mapping: `ws.db.open_cell_view_by_type(...)` |
+| **Load .il files** | `client.load_il()` | Not supported |
+| **Layout / schematic API** | `client.layout.edit()` context manager | Raw SKILL only |
+| **Spectre simulation** | Built-in runner + PSF parser | Not supported |
+| **AI agent support** | Skill files, CLI-first, command logging | Not designed for agents |
+| **Python ↔ SKILL types** | String-based | Auto bidirectional mapping |
+| **IDE tab completion** | No (not needed by agents) | Yes (Jupyter, PyCharm stubs) |
+
+**In short:** Both projects are built on the same Cadence SKILL IPC facility, using the same core mechanism: `ipcBeginProcess` + `evalstring` + `ipcWriteProcess`. Here are the core lines from each:
+
+<details>
+<summary><b>virtuoso-bridge-lite</b> — <code>src/virtuoso_bridge/virtuoso/basic/resources/ramic_bridge.il</code></summary>
+
+```skill
+RBIpc = ipcBeginProcess(
+  sprintf(nil "%s %L %L %L" RBPython RBDPath host RBPort)
+  "" 'RBIpcDataHandler 'RBIpcErrHandler 'RBIpcFinishHandler "")
+
+procedure(RBIpcDataHandler(ipcId data)
+  if(errset(result = evalstring(data)) then
+    ipcWriteProcess(ipcId sprintf(nil "%c%L%c" 2 result 30))
+  else
+    ipcWriteProcess(ipcId sprintf(nil "%c%L%c" 21 errset.errset 30))
+  )
+)
+```
+</details>
+
+<details>
+<summary><b>skillbridge</b> — <code>skillbridge/server/python_server.il</code></summary>
+
+```skill
+pyStartServer.ipc = ipcBeginProcess(
+  executableWithArgs "" '__pyOnData '__pyOnError '__pyOnFinish pyStartServer.logName)
+
+defun(__pyOnData (id data)
+  foreach(line parseString(data "\n")
+    capturedWarning = __pyCaptureWarnings(errset(result=evalstring(line)))
+    ipcWriteProcess(id lsprintf("success %L\n" result))
+  )
+)
+```
+</details>
+
+The divergence is in what's built on top: skillbridge stays thin — a Pythonic RPC client for interactive local use. virtuoso-bridge-lite adds SSH remote access, high-level layout/schematic APIs, Spectre simulation, and an AI-agent-ready harness.
 
 ## Citation
 
