@@ -118,10 +118,19 @@ client.execute_skill("1+2")  # VirtuosoResult(status=SUCCESS, output='3')
 …or skip Python entirely — run SKILL straight from the shell:
 
 ```bash
-virtuoso-bridge eval 'getCurrentTime()'                      # one-liner, JSON result
-echo 'mapcar(lambda((l) l~>name) ddGetLibList())' \
-  | virtuoso-bridge eval --stdin                             # heredoc/pipe, no quoting headaches
-virtuoso-bridge load my_script.il                            # whole .il file (auto-uploaded in SSH mode)
+# One-liner — full VirtuosoResult JSON on stdout
+virtuoso-bridge eval 'getCurrentTime()'
+
+# Multi-line SKILL via heredoc (auto-wrapped in progn; returns the last form)
+virtuoso-bridge eval --stdin <<'EOF'
+let((libs)
+  libs = mapcar(lambda((l) l~>name) ddGetLibList())
+  printf("found %d libraries\n" length(libs))
+  libs)
+EOF
+
+# Whole .il file — uploaded automatically in SSH mode
+virtuoso-bridge load my_script.il
 ```
 
 For detailed setup (jump hosts, multi-profile, local mode), see [`AGENTS.md`](AGENTS.md).

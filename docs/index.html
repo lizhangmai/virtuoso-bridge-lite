@@ -177,13 +177,18 @@ result = client.<span class="fn">execute_skill</span>(<span class="str">"1+2"</s
 
     <pre><code><span class="cmt"># &mdash; or skip Python entirely: run SKILL straight from the shell &mdash;</span>
 
-<span class="cmt"># Inline one-liner (full VirtuosoResult JSON on stdout)</span>
+<span class="cmt"># One-liner &mdash; full VirtuosoResult JSON on stdout</span>
 <span class="cmd">virtuoso-bridge eval</span> <span class="str">'getCurrentTime()'</span>
 
-<span class="cmt"># Pipe in via stdin to dodge shell quoting on complex expressions</span>
-<span class="cmd">echo</span> <span class="str">'mapcar(lambda((l) l~&gt;name) ddGetLibList())'</span> | <span class="cmd">virtuoso-bridge eval --stdin</span>
+<span class="cmt"># Multi-line SKILL via heredoc (auto-wrapped in progn; returns the last form)</span>
+<span class="cmd">virtuoso-bridge eval --stdin</span> &lt;&lt;<span class="str">'EOF'</span>
+<span class="kw">let</span>((libs)
+  libs = <span class="fn">mapcar</span>(<span class="kw">lambda</span>((l) l~&gt;name) <span class="fn">ddGetLibList</span>())
+  <span class="fn">printf</span>(<span class="str">"found %d libraries\n"</span> <span class="fn">length</span>(libs))
+  libs)
+<span class="str">EOF</span>
 
-<span class="cmt"># Run a full SKILL script file (uploads automatically in SSH mode)</span>
+<span class="cmt"># Whole .il file &mdash; uploaded automatically in SSH mode</span>
 <span class="cmd">virtuoso-bridge load</span> my_script.il</code></pre>
 
     <h3>Jump host setup</h3>
