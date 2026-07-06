@@ -49,6 +49,13 @@ def maestro_open_waveform_viewer_skill(
     The Maestro results session is intentionally left open because AWV plot
     windows keep references to the opened result database.
 
+    Args:
+        test: Maestro test name used for maeGetOutputValue fallback.
+        result: Spectre result name, e.g. "tran".
+        results_dir: Optional raw PSF directory. When provided, openResults
+            must succeed; otherwise the generated SKILL errors instead of
+            falling back to another active results context.
+
     TODO: measurement waveform setup is intentionally not implemented here.
     TODO: template plot restore/apply support is intentionally not implemented here.
     """
@@ -117,6 +124,7 @@ def maestro_open_waveform_viewer_skill(
         'unless(vbResultsOpen error("open results failed")) '
         f"vbResultsDir = {results_dir_expr} "
         f"vbRawResultsOpen = {raw_open_expr} "
+        'when(vbResultsDir && !vbRawResultsOpen error("open raw results failed")) '
         f'vbTestName = "{escaped_test}" '
         "vbWaveforms = nil "
         f"{''.join(signal_blocks)}"
@@ -187,7 +195,13 @@ def open_waveform_viewer(
     results_dir: str | Path | None = None,
     timeout: int = 60,
 ) -> Any:
-    """Open a ViVA/AWV plot window by executing generated SKILL."""
+    """Open a ViVA/AWV plot window by executing generated SKILL.
+
+    Returns the raw VirtuosoResult from client.execute_skill(). The retained
+    Maestro session and waveform window handles are encoded in result.output
+    as a SKILL list and should be passed to close_waveform_viewer() by callers
+    that need deterministic cleanup.
+    """
     skill = maestro_open_waveform_viewer_skill(
         lib,
         cell,

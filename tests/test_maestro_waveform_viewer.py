@@ -80,16 +80,35 @@ def test_maestro_open_waveform_viewer_escapes_string_inputs() -> None:
     assert '/tmp/a\\"b\\\\c' in skill
 
 
+def test_maestro_open_waveform_viewer_requires_explicit_results_dir_to_open() -> None:
+    skill = maestro_open_waveform_viewer_skill(
+        "demoLib",
+        "tb_inv",
+        "Interactive.1",
+        signals=["/OUT"],
+        results_dir="/tmp/psf/tran/psf",
+    )
+
+    assert 'when(vbResultsDir && !vbRawResultsOpen error("open raw results failed"))' in skill
+
+
+def test_maestro_open_waveform_viewer_docstring_documents_test_and_result() -> None:
+    doc = maestro_open_waveform_viewer_skill.__doc__ or ""
+
+    assert "test: Maestro test name" in doc
+    assert "result: Spectre result name" in doc
+
+
 def test_maestro_open_waveform_viewer_skill_can_fallback_to_maestro_outputs() -> None:
     skill = maestro_open_waveform_viewer_skill(
         "demoLib",
         "tb_inv",
         "Interactive.1",
         signals=["vout"],
-        test="tran",
+        test="tran_test",
     )
 
-    assert 'maeGetOutputValue("vout" "tran")' in skill
+    assert 'maeGetOutputValue("vout" "tran_test")' in skill
     assert 'list("opened" "demoLib" "tb_inv" "maestro" "Interactive.1" vbSession vbWindowId)' in skill
 
 
@@ -167,6 +186,15 @@ def test_open_waveform_viewer_executes_generated_skill() -> None:
     assert client.timeout == 30
     assert client.skill is not None
     assert 'awvPlotWaveform(vbWindowId vbWaveforms ?expr list("/OUT"))' in client.skill
+
+
+def test_open_waveform_viewer_docstring_documents_raw_result_contract() -> None:
+    doc = open_waveform_viewer.__doc__ or ""
+
+    assert "raw VirtuosoResult" in doc
+    assert "output" in doc
+    assert "session" in doc
+    assert "window" in doc
 
 
 def test_close_waveform_viewer_executes_generated_skill() -> None:
