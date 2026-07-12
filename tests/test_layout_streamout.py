@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import stat
+import sys
 from dataclasses import FrozenInstanceError, fields
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
@@ -199,12 +200,12 @@ class _FakeRemoteRunner:
                         f"{hashlib.sha256(self.gds).hexdigest()}"
                     )
             return CommandResult(0, "\n".join(lines) + "\n", "")
-        if "rm -f -- " in command:
+        if "rm -f " in command:
             if isinstance(self.discard, BaseException):
                 raise self.discard
             assert isinstance(self.discard, CommandResult)
             return self.discard
-        if "rm -rf -- " in command:
+        if "rm -rf " in command:
             if isinstance(self.cleanup, BaseException):
                 raise self.cleanup
             assert isinstance(self.cleanup, CommandResult)
@@ -600,19 +601,31 @@ def test_remote_finalization_sentinel_uses_sha256_fallbacks(
         assert utility_path is not None
         (fake_bin / utility).symlink_to(utility_path)
     tool = fake_bin / digest_tool
+    hash_code = (
+        "import hashlib, pathlib, sys; "
+        "p=sys.argv[-1]; "
+        "digest=hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest(); "
+    )
     if digest_tool == "sha256sum":
-        script = "#!/bin/sh\nexec /usr/bin/sha256sum \"$@\"\n"
+        script = (
+            "#!/bin/sh\n"
+            f"exec {shlex.quote(sys.executable)} -c "
+            f"{shlex.quote(hash_code + 'print(digest + \"  \" + p)')} "
+            '"$@"\n'
+        )
     elif digest_tool == "shasum":
         script = (
-            "#!/bin/sh\nshift 3\n"
-            "line=$(/usr/bin/sha256sum -- \"$1\") || exit $?\n"
-            "printf '%s  %s\\n' \"${line%% *}\" \"$1\"\n"
+            "#!/bin/sh\n"
+            f"exec {shlex.quote(sys.executable)} -c "
+            f"{shlex.quote(hash_code + 'print(digest + \"  \" + p)')} "
+            '"$@"\n'
         )
     else:
         script = (
-            "#!/bin/sh\nshift 2\n"
-            "line=$(/usr/bin/sha256sum -- \"$1\") || exit $?\n"
-            "printf 'SHA2-256(%s)= %s\\n' \"$1\" \"${line%% *}\"\n"
+            "#!/bin/sh\n"
+            f"exec {shlex.quote(sys.executable)} -c "
+            f"{shlex.quote(hash_code + 'print(\"SHA2-256(\" + p + \")= \" + digest)')} "
+            '"$@"\n'
         )
     tool.write_text(script, encoding="utf-8")
     tool.chmod(0o755)
@@ -895,7 +908,7 @@ def test_remote_export_stages_owned_posix_run_and_all_request_fields(
     )
     assert "\\" not in result.remote_run_dir
     assert "umask 077" in runner.calls[0][0]
-    assert f"mkdir -m 700 -- '{result.remote_run_dir}'" in runner.calls[0][0]
+    assert f"mkdir -m 700 '{result.remote_run_dir}'" in runner.calls[0][0]
     assert all(timeout > 0.0 for _command, timeout in runner.calls)
     assert len(client.uploads) == 1
     assert client.uploads[0][0] == stream_map
@@ -1166,7 +1179,7 @@ def test_remote_delete_command_revalidates_chain_before_exact_remove(
     assert gds_path.read_bytes() == b"must-survive"
     exact_target = paths.run_dir if remove_run else paths.gds
     action = "rm -rf" if remove_run else "rm -f"
-    assert f"{action} -- {shlex.quote(exact_target.as_posix())}" in command
+    assert f"{action} {shlex.quote(exact_target.as_posix())}" in command
 
 
 def test_remote_export_downloads_log_before_gds_and_publishes_atomically(
@@ -1354,7 +1367,7 @@ def test_remote_export_full_log_overrides_successful_tail_and_blocks_gds(
         "xstream.log"
     ]
     assert any(
-        "rm -f -- " in command
+        "rm -f " in command
         for command, _timeout in runner.calls
     )
 
@@ -1639,10 +1652,10 @@ def test_remote_success_cleanup_reports_exact_retention_state(
     cleanup_calls = [
         command
         for command, _timeout in runner.calls
-        if "rm -rf -- " in command
+        if "rm -rf " in command
     ]
     assert len(cleanup_calls) == 1
-    assert f"rm -rf -- {result.remote_run_dir}" in cleanup_calls[0]
+    assert f"rm -rf {result.remote_run_dir}" in cleanup_calls[0]
     if cleanup_result.returncode != 0:
         assert any("cleanup" in warning for warning in result.warnings)
 
@@ -1671,8 +1684,8 @@ def test_remote_always_cleanup_runs_after_failed_log_and_preserves_reason(
     assert result.reason == GdsExportReason.XSTREAM_FAILURE
     assert result.remote_files_retained is False
     commands = [command for command, _timeout in runner.calls]
-    assert any("rm -f -- " in command for command in commands)
-    assert f"rm -rf -- {result.remote_run_dir}" in commands[-1]
+    assert any("rm -f " in command for command in commands)
+    assert f"rm -rf {result.remote_run_dir}" in commands[-1]
 
 
 def test_remote_always_cleanup_retains_run_when_full_log_download_fails(
@@ -1697,7 +1710,7 @@ def test_remote_always_cleanup_retains_run_when_full_log_download_fails(
     assert result.reason == GdsExportReason.TRANSPORT_ERROR
     assert result.remote_files_retained is True
     assert not any(
-        "rm -rf -- " in command
+        "rm -rf " in command
         for command, _timeout in runner.calls
     )
 
@@ -1731,7 +1744,7 @@ def test_remote_cleanup_budget_exhaustion_sends_no_cleanup_command(
     assert result.status == ExecutionStatus.SUCCESS
     assert result.remote_files_retained is True
     assert not any(
-        "rm -rf -- " in command
+        "rm -rf " in command
         for command, _timeout in runner.calls
     )
     assert any("cleanup skipped" in warning for warning in result.warnings)

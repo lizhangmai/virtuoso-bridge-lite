@@ -195,8 +195,8 @@ def _remote_security_prelude() -> str:
     return r"""umask 077
 vb_uid=$(id -u) || exit $?
 vb_read_meta() {
-    vb_meta=$(stat -c '%u %a' -- "$1" 2>/dev/null) ||
-        vb_meta=$(stat -f '%u %Lp' -- "$1" 2>/dev/null) || return 74
+    vb_meta=$(stat -c '%u %a' "$1" 2>/dev/null) ||
+        vb_meta=$(stat -f '%u %Lp' "$1" 2>/dev/null) || return 74
     set -- $vb_meta
     vb_owner=$1
     vb_mode=$2
@@ -213,7 +213,7 @@ vb_verify_dir() {
         return 75
     fi
     if [ "$vb_mode" != 700 ]; then
-        chmod 700 -- "$vb_path" || return $?
+        chmod 700 "$vb_path" || return $?
         if [ -L "$vb_path" ] || [ ! -d "$vb_path" ]; then
             printf 'unsafe remote XStream directory after chmod: %s\n' "$vb_path" >&2
             return 73
@@ -232,7 +232,7 @@ vb_ensure_dir() {
         return 73
     fi
     if [ ! -e "$vb_path" ]; then
-        mkdir -m 700 -- "$vb_path" || return $?
+        mkdir -m 700 "$vb_path" || return $?
     fi
     vb_verify_dir "$vb_path"
 }
@@ -258,7 +258,7 @@ def _remote_stage_command(paths: _RemoteExportPaths) -> str:
             f"    printf 'remote XStream run already exists: %s\\n' {quoted_run} >&2\n",
             "    exit 77\n",
             "fi\n",
-            f"mkdir -m 700 -- {quoted_run} || exit $?\n",
+            f"mkdir -m 700 {quoted_run} || exit $?\n",
             f"printf '%s\\n' {_REMOTE_STAGE_CREATED}\n",
             f"vb_verify_dir {quoted_run} || exit $?\n",
             f"printf '%s\\n' {_REMOTE_STAGE_READY}\n",
@@ -288,7 +288,7 @@ def _remote_delete_command(
         )
     target = paths.run_dir if remove_run else paths.gds
     flags = "-rf" if remove_run else "-f"
-    commands.append(f"rm {flags} -- {shlex.quote(target.as_posix())}\n")
+    commands.append(f"rm {flags} {shlex.quote(target.as_posix())}\n")
     return "".join(commands)
 
 
@@ -316,10 +316,10 @@ def _remote_poll_command(
     if include_digests:
         digest_function = r"""vb_sha256() {
     if command -v sha256sum >/dev/null 2>&1; then
-        vb_digest_line=$(sha256sum -- "$1") || return $?
+        vb_digest_line=$(sha256sum "$1") || return $?
         vb_digest=${vb_digest_line%% *}
     elif command -v shasum >/dev/null 2>&1; then
-        vb_digest_line=$(shasum -a 256 -- "$1") || return $?
+        vb_digest_line=$(shasum -a 256 "$1") || return $?
         vb_digest=${vb_digest_line%% *}
     elif command -v openssl >/dev/null 2>&1; then
         vb_digest_line=$(openssl dgst -sha256 "$1") || return $?
@@ -348,12 +348,12 @@ def _remote_poll_command(
         "umask 077; "
         f"vb_tail_probe={quoted_tail_probe}; "
         f"vb_tail_lines={quoted_tail_lines}; "
-        'rm -f -- "$vb_tail_probe" "$vb_tail_lines" || exit $?; '
-        "trap 'rm -f -- \"$vb_tail_probe\" \"$vb_tail_lines\"' 0; "
-        f"tail -c {tail_probe_bytes} -- {quoted_log} "
+        'rm -f "$vb_tail_probe" "$vb_tail_lines" || exit $?; '
+        "trap 'rm -f \"$vb_tail_probe\" \"$vb_tail_lines\"' 0; "
+        f"tail -c {tail_probe_bytes} {quoted_log} "
         '> "$vb_tail_probe"; vb_tail_rc=$?; '
         '[ "$vb_tail_rc" -eq 0 ] || exit "$vb_tail_rc"; '
-        'tail -n 200 -- "$vb_tail_probe" > "$vb_tail_lines"; '
+        'tail -n 200 "$vb_tail_probe" > "$vb_tail_lines"; '
         "vb_tail_rc=$?; "
         '[ "$vb_tail_rc" -eq 0 ] || exit "$vb_tail_rc"; '
         'vb_tail_size=$(wc -c < "$vb_tail_lines"); vb_tail_rc=$?; '
@@ -363,10 +363,10 @@ def _remote_poll_command(
         f"printf '%s LOG_TRUNCATED %s\\n' {token} "
         '"$vb_tail_truncated"; '
         f"printf '%s LOG_BEGIN\\n' {token}; "
-        f'tail -c {_REMOTE_LOG_TAIL_BYTES} -- "$vb_tail_lines"; '
+        f'tail -c {_REMOTE_LOG_TAIL_BYTES} "$vb_tail_lines"; '
         "vb_tail_rc=$?; printf '\\n'; "
         f"[ \"$vb_tail_rc\" -eq 0 ] || exit \"$vb_tail_rc\"; "
-        'rm -f -- "$vb_tail_probe" "$vb_tail_lines"; '
+        'rm -f "$vb_tail_probe" "$vb_tail_lines"; '
         "vb_tail_rc=$?; trap - 0; "
         '[ "$vb_tail_rc" -eq 0 ] || exit "$vb_tail_rc"; '
         f"printf '%s LOG_END\\n' {token}; "
